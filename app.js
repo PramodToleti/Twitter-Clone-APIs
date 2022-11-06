@@ -368,3 +368,58 @@ app.get(
     }
   }
 );
+
+//Get list of all tweets of the user
+app.get("/user/tweets/", authenticateToken, async (request, response) => {
+  const username = request.username;
+  const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+  const userDetails = await db.get(getUserQuery);
+  const userId = userDetails.user_id;
+  const userTweetsQuery = `
+    SELECT 
+      tweet.tweet,
+      tweet.date_time,
+      tweet.tweet_id
+    FROM tweet 
+    INNER JOIN user 
+    ON user.user_id = tweet.user_id 
+    WHERE 
+      user.user_id = ${userId};
+  `;
+  const userTweets = await db.all(userTweetsQuery);
+  const userTweetsDetails = [];
+  for (let obj of userTweets) {
+    const tweetReplyQuery = `
+          SELECT 
+            COUNT(tweet.tweet_id) AS repliesCount
+          FROM tweet 
+          INNER JOIN reply ON tweet.tweet_id = reply.tweet_id 
+          WHERE tweet.tweet_id = ${obj.tweet_id};
+    `;
+    const replies = await db.get(tweetReplyQuery);
+    const tweetLikesQuery = `
+          SELECT 
+            COUNT(tweet.tweet_id) AS likesCount
+          FROM tweet 
+          INNER JOIN like ON tweet.tweet_id = like.tweet_id 
+          WHERE 
+            tweet.tweet_id = ${obj.tweet_id};
+    `;
+    const likes = await db.get(tweetLikesQuery);
+    const tweetDetails = {
+      tweet: obj.tweet,
+      likes: likes.likesCount,
+      replies: replies.repliesCount,
+      dateTime: obj.date_time,
+    };
+    userTweetsDetails.push(tweetDetails);
+  }
+  response.send(userTweetsDetails);
+});
