@@ -143,3 +143,27 @@ app.get("/user/tweets/feed/", authenticateToken, async (request, response) => {
   });
   response.send(getTweets);
 });
+
+//Get list of all names of people whom the user follows
+app.get("/user/following/", authenticateToken, async (request, response) => {
+  const username = request.username;
+  const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+  const userDetails = await db.get(getUserQuery);
+  const userId = userDetails.user_id;
+  const getUsersQuery = `
+    SELECT 
+      user.name 
+    FROM user 
+    INNER JOIN follower ON follower.following_user_id = user.user_id 
+    WHERE follower.follower_user_id = ${userId};
+  `;
+  const dbResponse = await db.all(getUsersQuery);
+  response.send(dbResponse);
+});
