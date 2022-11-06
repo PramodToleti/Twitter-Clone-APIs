@@ -191,3 +191,67 @@ app.get("/user/followers/", authenticateToken, async (request, response) => {
   const dbResponse = await db.all(getFollowersQuery);
   response.send(dbResponse);
 });
+
+//Get Tweets with Likes and Replies Count
+app.get("/tweets/:tweetId/", authenticateToken, async (request, response) => {
+  const { tweetId } = request.params;
+  const username = request.username;
+  const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+  const userDetails = await db.get(getUserQuery);
+  const userId = userDetails.user_id;
+  const followingUsersQuery = `
+    SELECT 
+      user.user_id 
+    FROM  user 
+    INNER JOIN follower ON user.user_id = follower.following_user_id 
+    WHERE follower.follower_user_id= ${userId};
+  `;
+  const dbResponse = await db.all(followingUsersQuery);
+  let followingUsersIds = [];
+  dbResponse.map((obj) => followingUsersIds.push(obj.user_id));
+  const getTweetQuery = `
+    SELECT 
+      *
+    FROM
+      tweet
+    WHERE 
+      tweet_id = ${tweetId};
+  `;
+  const tweetDetails = await db.get(getTweetQuery);
+  if (followingUsersIds.includes(tweetDetails.user_id)) {
+    const tweetReplyQuery = `
+          SELECT 
+            COUNT(tweet.tweet_id) AS repliesCount
+          FROM tweet 
+          INNER JOIN reply ON tweet.tweet_id = reply.tweet_id 
+          WHERE tweet.tweet_id = ${tweetId};
+    `;
+    const replies = await db.get(tweetReplyQuery);
+    const tweetLikesQuery = `
+          SELECT 
+            COUNT(tweet.tweet_id) AS likesCount
+          FROM tweet 
+          INNER JOIN like ON tweet.tweet_id = like.tweet_id 
+          WHERE 
+            tweet.tweet_id = ${tweetId};
+    `;
+    const likes = await db.get(tweetLikesQuery);
+    const tweetCompleteDetails = {
+      tweet: tweetDetails.tweet,
+      likes: likes.likesCount,
+      replies: replies.repliesCount,
+      dateTime: tweetDetails.date_time,
+    };
+    response.send(tweetCompleteDetails);
+  } else {
+    response.status(401);
+    response.send("Invalid Request");
+  }
+});
