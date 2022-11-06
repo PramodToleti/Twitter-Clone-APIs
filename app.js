@@ -313,3 +313,58 @@ app.get(
     }
   }
 );
+
+//Get Reply Details of a tweet
+app.get(
+  "/tweets/:tweetId/replies/",
+  authenticateToken,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    const username = request.username;
+    const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+    const userDetails = await db.get(getUserQuery);
+    const userId = userDetails.user_id;
+    const followingUsersQuery = `
+    SELECT 
+      user.user_id 
+    FROM  user 
+    INNER JOIN follower ON user.user_id = follower.following_user_id 
+    WHERE follower.follower_user_id= ${userId};
+  `;
+    const dbResponse = await db.all(followingUsersQuery);
+    let followingUsersIds = [];
+    dbResponse.map((obj) => followingUsersIds.push(obj.user_id));
+    const getTweetQuery = `
+    SELECT 
+      *
+    FROM
+      tweet
+    WHERE 
+      tweet_id = ${tweetId};
+  `;
+    const tweetDetails = await db.get(getTweetQuery);
+    if (followingUsersIds.includes(tweetDetails.user_id)) {
+      const repliesDetailsQuery = `
+        SELECT 
+          user.name,
+          reply.reply 
+        FROM reply 
+        INNER JOIN user 
+        ON user.user_id = reply.user_id 
+        WHERE reply.tweet_id = ${tweetId};
+      `;
+      const repliesDetails = await db.all(repliesDetailsQuery);
+      response.send({ replies: repliesDetails });
+    } else {
+      response.status(401);
+      response.send("Invalid Request");
+    }
+  }
+);
