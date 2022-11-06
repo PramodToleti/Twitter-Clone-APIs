@@ -54,3 +54,13 @@ GET http://localhost:3000/user/tweets/
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjY3NTc1NzE2fQ.eQooOfToCyu0lxlnASkSquH4mUthI-vTrgGLfHAV3kc
 
 ###
+
+POST http://localhost:3000/user/tweets/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkpvZUJpZGVuIiwiaWF0IjoxNjY3NTc1NzE2fQ.eQooOfToCyu0lxlnASkSquH4mUthI-vTrgGLfHAV3kc
+Content-Type: application/json
+
+{
+   "tweet": "A Wonderful day at Google Headquaters! Thanks @google for inviting me."
+}
+
+###

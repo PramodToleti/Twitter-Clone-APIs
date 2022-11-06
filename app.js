@@ -423,3 +423,29 @@ app.get("/user/tweets/", authenticateToken, async (request, response) => {
   }
   response.send(userTweetsDetails);
 });
+
+//Create Tweet API
+app.post("/user/tweets/", authenticateToken, async (request, response) => {
+  const username = request.username;
+  const { tweet } = request.body;
+  const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+  const userDetails = await db.get(getUserQuery);
+  const userId = userDetails.user_id;
+  const postTweetQuery = `
+    INSERT INTO
+      tweet(tweet, user_id)
+    VALUES
+      ('${tweet}', ${userId});
+  `;
+  const postTweet = await db.run(postTweetQuery);
+  const tweetId = postTweet.lastID;
+  //console.log({tweetId: tweetId});
+  response.send("Created a Tweet");
+});
