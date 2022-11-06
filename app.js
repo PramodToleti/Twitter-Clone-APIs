@@ -167,3 +167,27 @@ app.get("/user/following/", authenticateToken, async (request, response) => {
   const dbResponse = await db.all(getUsersQuery);
   response.send(dbResponse);
 });
+
+//GET the list of all names of people who follows the user
+app.get("/user/followers/", authenticateToken, async (request, response) => {
+  const username = request.username;
+  const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+  const userDetails = await db.get(getUserQuery);
+  const userId = userDetails.user_id;
+  const getFollowersQuery = `
+    SELECT 
+      user.name
+    FROM user 
+    INNER JOIN follower ON follower.follower_user_id = user.user_id 
+    WHERE follower.following_user_id = ${userId};
+  `;
+  const dbResponse = await db.all(getFollowersQuery);
+  response.send(dbResponse);
+});
