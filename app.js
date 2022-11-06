@@ -292,8 +292,12 @@ app.get(
       tweet_id = ${tweetId};
   `;
     const tweetDetails = await db.get(getTweetQuery);
-    if (followingUsersIds.includes(tweetDetails.user_id)) {
-      const getUserNamesQuery = `
+    if (tweetDetails === undefined) {
+      response.status(401);
+      response.send("Invalid Request");
+    } else {
+      if (followingUsersIds.includes(tweetDetails.user_id)) {
+        const getUserNamesQuery = `
         SELECT 
           user.username
         FROM like 
@@ -302,14 +306,15 @@ app.get(
         WHERE 
           like.tweet_id = ${tweetId};
       `;
-      const usersNames = await db.all(getUserNamesQuery);
-      const usernamesList = usersNames.map((obj) => {
-        return obj.username;
-      });
-      response.send(usernamesList);
-    } else {
-      response.status(401);
-      response.send("Invalid Request");
+        const usersNames = await db.all(getUserNamesQuery);
+        const usernamesList = usersNames.map((obj) => {
+          return obj.username;
+        });
+        response.send(usernamesList);
+      } else {
+        response.status(401);
+        response.send("Invalid Request");
+      }
     }
   }
 );
@@ -449,3 +454,51 @@ app.post("/user/tweets/", authenticateToken, async (request, response) => {
   //console.log({tweetId: tweetId});
   response.send("Created a Tweet");
 });
+
+//Delete a tweet API
+app.delete(
+  "/tweets/:tweetId/",
+  authenticateToken,
+  async (request, response) => {
+    let { tweetId } = request.params;
+    tweetId = parseInt(tweetId);
+    const username = request.username;
+    const { tweet } = request.body;
+    const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+    const userDetails = await db.get(getUserQuery);
+    const userId = userDetails.user_id;
+    const userTweetsQuery = `
+        SELECT 
+          tweet_id
+        FROM 
+          tweet
+        WHERE 
+          user_id = ${userId};
+    `;
+    const userTweetsResponse = await db.all(userTweetsQuery);
+    const userTweetsIds = [];
+    for (let obj of userTweetsResponse) {
+      userTweetsIds.push(obj.tweet_id);
+    }
+    if (userTweetsIds.includes(tweetId)) {
+      const deleteTweetQuery = `
+        DELETE FROM 
+            tweet
+        WHERE
+          tweet_id = ${tweetId};
+      `;
+      await db.run(deleteTweetQuery);
+      response.send("Tweet Removed");
+    } else {
+      response.status(401);
+      response.send("Invalid Request");
+    }
+  }
+);
