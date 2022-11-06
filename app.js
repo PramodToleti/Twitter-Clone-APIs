@@ -255,3 +255,61 @@ app.get("/tweets/:tweetId/", authenticateToken, async (request, response) => {
     response.send("Invalid Request");
   }
 });
+
+//Get List of Names who Liked User Tweet
+app.get(
+  "/tweets/:tweetId/likes/",
+  authenticateToken,
+  async (request, response) => {
+    const { tweetId } = request.params;
+    const username = request.username;
+    const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+    const userDetails = await db.get(getUserQuery);
+    const userId = userDetails.user_id;
+    const followingUsersQuery = `
+    SELECT 
+      user.user_id 
+    FROM  user 
+    INNER JOIN follower ON user.user_id = follower.following_user_id 
+    WHERE follower.follower_user_id= ${userId};
+  `;
+    const dbResponse = await db.all(followingUsersQuery);
+    let followingUsersIds = [];
+    dbResponse.map((obj) => followingUsersIds.push(obj.user_id));
+    const getTweetQuery = `
+    SELECT 
+      *
+    FROM
+      tweet
+    WHERE 
+      tweet_id = ${tweetId};
+  `;
+    const tweetDetails = await db.get(getTweetQuery);
+    if (followingUsersIds.includes(tweetDetails.user_id)) {
+      const getUserNamesQuery = `
+        SELECT 
+          user.username
+        FROM like 
+        INNER JOIN user 
+        ON like.user_id = user.user_id 
+        WHERE 
+          like.tweet_id = ${tweetId};
+      `;
+      const usersNames = await db.all(getUserNamesQuery);
+      const usernamesList = usersNames.map((obj) => {
+        return obj.username;
+      });
+      response.send(usernamesList);
+    } else {
+      response.status(401);
+      response.send("Invalid Request");
+    }
+  }
+);
