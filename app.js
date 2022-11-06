@@ -81,3 +81,65 @@ app.post("/login/", async (request, response) => {
     }
   }
 });
+
+//User Authentication API
+const authenticateToken = (request, response, next) => {
+  let jwtToken;
+  const authHeaders = request.headers["authorization"];
+  if (authHeaders !== undefined) {
+    jwtToken = authHeaders.split(" ")[1];
+  }
+  if (jwtToken === undefined) {
+    response.status(401);
+    response.send("Invalid JWT Token");
+  } else {
+    jwt.verify(jwtToken, "SECRET_TOKEN", async (err, payload) => {
+      if (err) {
+        response.status(401);
+        response.send("Invalid JWT Token");
+      } else {
+        request.username = payload.username;
+        next();
+      }
+    });
+  }
+};
+
+//Get Latest tweets of people whom the user follows
+app.get("/user/tweets/feed/", authenticateToken, async (request, response) => {
+  const username = request.username;
+  const getUserQuery = `
+    SELECT 
+      *
+    FROM
+      user
+    WHERE 
+      username = '${username}';
+  `;
+  const userDetails = await db.get(getUserQuery);
+  const userId = userDetails.user_id;
+  const getTweetsQuery = `
+    SELECT 
+        user.username,
+        tweet.tweet,
+        tweet.date_time
+    FROM user 
+    INNER JOIN follower ON user.user_id = follower.following_user_id 
+    INNER JOIN tweet ON tweet.user_id = follower.following_user_id 
+    WHERE follower.follower_user_id = ${userId}
+    ORDER BY
+      CAST(strftime("%H", tweet.date_time) AS INTEGER) DESC,
+      CAST(strftime("%M", tweet.date_time) AS INTEGER) DESC,
+      CAST(strftime("%S", tweet.date_time) AS INTEGER) DESC
+    LIMIT 4;
+  `;
+  const dbResponse = await db.all(getTweetsQuery);
+  const getTweets = dbResponse.map((obj) => {
+    return {
+      username: obj.username,
+      tweet: obj.tweet,
+      dateTime: obj.date_time,
+    };
+  });
+  response.send(getTweets);
+});
